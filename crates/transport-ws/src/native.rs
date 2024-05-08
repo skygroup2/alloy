@@ -6,7 +6,7 @@ use serde_json::value::RawValue;
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_tungstenite::{
-    tungstenite::{self, client::IntoClientRequest, Message},
+    tungstenite::{self, client::IntoClientRequest, Message, protocol::WebSocketConfig, extensions::DeflateConfig},
     MaybeTlsStream, WebSocketStream,
 };
 
@@ -59,7 +59,14 @@ impl PubSubConnect for WsConnect {
         let request = self.clone().into_client_request();
         let req = request.map_err(TransportErrorKind::custom)?;
         let (socket, _) =
-            tokio_tungstenite::connect_async(req).await.map_err(TransportErrorKind::custom)?;
+            tokio_tungstenite::connect_async_with_config(
+                req,
+                Some(WebSocketConfig { compression: Some(DeflateConfig::default()),
+                    ..WebSocketConfig::default()
+                }),
+                false
+            )
+            .await.map_err(TransportErrorKind::custom)?;
 
         let (handle, interface) = alloy_pubsub::ConnectionHandle::new();
         let backend = WsBackend { socket, interface };
